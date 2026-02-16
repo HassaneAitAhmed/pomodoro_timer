@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pomodoro Buddy - Focus Timer</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    }
+    @keyframes trophy-bounce {
+      0%, 100% { transform: translateY(0) rotate(-5deg); }
+      50% { transform: translateY(-10px) rotate(5deg); }
+    }
+    .trophy-animate {
+      animation: trophy-bounce 2s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: -1000px 0; }
+      100% { background-position: 1000px 0; }
+    }
+    .shimmer {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      background-size: 1000px 100%;
+      animation: shimmer 3s infinite;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Icons
+    const Play = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+      </svg>
+    );
+
+    const Pause = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="6" y="4" width="4" height="16"></rect>
+        <rect x="14" y="4" width="4" height="16"></rect>
+      </svg>
+    );
+
+    const RotateCcw = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="1 4 1 10 7 10"></polyline>
+        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+      </svg>
+    );
+
+    const Coffee = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+        <line x1="6" y1="1" x2="6" y2="4"></line>
+        <line x1="10" y1="1" x2="10" y2="4"></line>
+        <line x1="14" y1="1" x2="14" y2="4"></line>
+      </svg>
+    );
+
+    const BookOpen = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+      </svg>
+    );
+
+    const Volume2 = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+      </svg>
+    );
+
+    const VolumeX = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <line x1="23" y1="9" x2="17" y2="15"></line>
+        <line x1="17" y1="9" x2="23" y2="15"></line>
+      </svg>
+    );
+
+    const Trophy = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+        <path d="M4 22h16"></path>
+        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+        <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
+      </svg>
+    );
+
+    const Clock = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+    );
+
+    const LogOut = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+        <polyline points="16 17 21 12 16 7"></polyline>
+        <line x1="21" y1="12" x2="9" y2="12"></line>
+      </svg>
+    );
+
+    const User = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+    );
+
+    function PomodoroBuddy() {
+      const [currentUser, setCurrentUser] = useState(null);
+      const [showLogin, setShowLogin] = useState(true);
+      const [username, setUsername] = useState('');
+      const [view, setView] = useState('timer'); // 'timer', 'history', 'leaderboard'
+      
+      const [mode, setMode] = useState('focus');
+      const [timeLeft, setTimeLeft] = useState(25 * 60);
+      const [isRunning, setIsRunning] = useState(false);
+      const [selectedFocus, setSelectedFocus] = useState(25);
+      const [selectedBreak, setSelectedBreak] = useState(5);
+      const [lofiEnabled, setLofiEnabled] = useState(true);
+      const [sessionStart, setSessionStart] = useState(null);
+      
+      const audioContextRef = useRef(null);
+      const lofiOscRef = useRef(null);
+
+      const focusOptions = [
+        { time: 25, label: '25 min', desc: 'Classic Pomodoro' },
+        { time: 50, label: '50 min', desc: 'University study session' },
+        { time: 90, label: '90 min', desc: 'Ultradian rhythm cycle' },
+        { time: 52, label: '52 min', desc: 'DeskTime optimal focus' }
+      ];
+
+      const breakOptions = [
+        { time: 5, label: '5 min', desc: 'Classic short break' },
+        { time: 10, label: '10 min', desc: 'Extended short break' },
+        { time: 15, label: '15 min', desc: 'Long break' },
+        { time: 17, label: '17 min', desc: 'DeskTime break period' }
+      ];
+
+      // Load user on mount
+      useEffect(() => {
+        const savedUser = localStorage.getItem('pomodoro_current_user');
+        if (savedUser) {
+          setCurrentUser(savedUser);
+          setShowLogin(false);
+        }
+      }, []);
+
+      useEffect(() => {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        return () => {
+          if (audioContextRef.current) {
+            audioContextRef.current.close();
+          }
+        };
+      }, []);
+
+      useEffect(() => {
+        if (lofiEnabled && !isRunning) {
+          stopLofi();
+        } else if (lofiEnabled && isRunning) {
+          playLofi();
+        } else {
+          stopLofi();
+        }
+      }, [lofiEnabled, isRunning]);
+
+      useEffect(() => {
+        let interval;
+        if (isRunning && timeLeft > 0) {
+          if (!sessionStart && mode === 'focus') {
+            setSessionStart(Date.now());
+          }
+          interval = setInterval(() => {
+            setTimeLeft(prev => prev - 1);
+          }, 1000);
+        } else if (timeLeft === 0) {
+          playCompletionSound();
+          setIsRunning(false);
+          
+          if (mode === 'focus') {
+            // Save completed session
+            saveSession(selectedFocus);
+            setMode('break');
+            setTimeLeft(selectedBreak * 60);
+            setSessionStart(null);
+          } else {
+            setMode('focus');
+            setTimeLeft(selectedFocus * 60);
+          }
+        }
+        return () => clearInterval(interval);
+      }, [isRunning, timeLeft, mode, selectedFocus, selectedBreak, sessionStart, currentUser]);
+
+      const saveSession = (duration) => {
+        if (!currentUser) return;
+
+        const session = {
+          username: currentUser,
+          duration: duration,
+          completedAt: new Date().toISOString(),
+          date: new Date().toLocaleDateString()
+        };
+
+        // Save to sessions list
+        const sessions = JSON.parse(localStorage.getItem('pomodoro_sessions') || '[]');
+        sessions.push(session);
+        localStorage.setItem('pomodoro_sessions', JSON.stringify(sessions));
+
+        // Update user stats
+        const users = JSON.parse(localStorage.getItem('pomodoro_users') || '{}');
+        if (!users[currentUser]) {
+          users[currentUser] = { totalMinutes: 0, sessions: 0, lastActive: new Date().toISOString() };
+        }
+        users[currentUser].totalMinutes += duration;
+        users[currentUser].sessions += 1;
+        users[currentUser].lastActive = new Date().toISOString();
+        localStorage.setItem('pomodoro_users', JSON.stringify(users));
+      };
+
+      const getUserStats = () => {
+        if (!currentUser) return { totalMinutes: 0, sessions: 0 };
+        const users = JSON.parse(localStorage.getItem('pomodoro_users') || '{}');
+        return users[currentUser] || { totalMinutes: 0, sessions: 0 };
+      };
+
+      const getUserSessions = () => {
+        const sessions = JSON.parse(localStorage.getItem('pomodoro_sessions') || '[]');
+        return sessions.filter(s => s.username === currentUser).reverse();
+      };
+
+      const getLeaderboard = () => {
+        const users = JSON.parse(localStorage.getItem('pomodoro_users') || '{}');
+        return Object.entries(users)
+          .map(([username, stats]) => ({ username, ...stats }))
+          .sort((a, b) => b.totalMinutes - a.totalMinutes);
+      };
+
+      const playLofi = () => {
+        if (!audioContextRef.current || lofiOscRef.current) return;
+        
+        const ctx = audioContextRef.current;
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        osc1.frequency.setValueAtTime(220, ctx.currentTime);
+        osc2.frequency.setValueAtTime(220.5, ctx.currentTime);
+        
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, ctx.currentTime);
+        
+        gain.gain.setValueAtTime(0.03, ctx.currentTime);
+        
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc1.start();
+        osc2.start();
+        
+        lofiOscRef.current = [osc1, osc2];
+      };
+
+      const stopLofi = () => {
+        if (lofiOscRef.current) {
+          lofiOscRef.current.forEach(osc => osc.stop());
+          lofiOscRef.current = null;
+        }
+      };
+
+      const playCompletionSound = () => {
+        if (!audioContextRef.current) return;
+        
+        const ctx = audioContextRef.current;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
+        osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2);
+        
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.5);
+      };
+
+      const toggleTimer = () => {
+        setIsRunning(!isRunning);
+      };
+
+      const resetTimer = () => {
+        setIsRunning(false);
+        setTimeLeft(mode === 'focus' ? selectedFocus * 60 : selectedBreak * 60);
+        setSessionStart(null);
+      };
+
+      const switchMode = (newMode) => {
+        setMode(newMode);
+        setIsRunning(false);
+        setTimeLeft(newMode === 'focus' ? selectedFocus * 60 : selectedBreak * 60);
+        setSessionStart(null);
+      };
+
+      const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      };
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        if (username.trim()) {
+          setCurrentUser(username.trim());
+          localStorage.setItem('pomodoro_current_user', username.trim());
+          setShowLogin(false);
+        }
+      };
+
+      const handleLogout = () => {
+        setCurrentUser(null);
+        localStorage.removeItem('pomodoro_current_user');
+        setShowLogin(true);
+        setIsRunning(false);
+        setView('timer');
+      };
+
+      const progress = mode === 'focus' 
+        ? ((selectedFocus * 60 - timeLeft) / (selectedFocus * 60)) * 100
+        : ((selectedBreak * 60 - timeLeft) / (selectedBreak * 60)) * 100;
+
+      const userStats = getUserStats();
+      const userSessions = getUserSessions();
+      const leaderboard = getLeaderboard();
+
+      // Login Screen
+      if (showLogin) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+            <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-12 max-w-md w-full border border-white/20">
+              <div className="text-center mb-8">
+                <div className="inline-block p-4 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full mb-4">
+                  <User size={48} className="text-white" />
+                </div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                  Welcome Back!
+                </h1>
+                <p className="text-gray-600">Enter your name to start your focus journey</p>
+              </div>
+              
+              <form onSubmit={handleLogin} className="space-y-4">
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full px-6 py-4 rounded-2xl border-2 border-gray-200 focus:border-indigo-500 focus:outline-none text-lg transition-all"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                >
+                  Start Focusing 🚀
+                </button>
+              </form>
+            </div>
+          </div>
+        );
+      }
+
+      // Main App
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4">
+          {/* Navigation */}
+          <div className="max-w-6xl mx-auto mb-6">
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg p-4 flex items-center justify-between border border-white/20">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full">
+                  <User size={20} className="text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-800">{currentUser}</p>
+                  <p className="text-xs text-gray-600">{userStats.totalMinutes} min studied</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setView('timer')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${view === 'timer' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                >
+                  Timer
+                </button>
+                <button
+                  onClick={() => setView('history')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${view === 'history' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                >
+                  History
+                </button>
+                <button
+                  onClick={() => setView('leaderboard')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${view === 'leaderboard' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                >
+                  Leaderboard
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-xl bg-red-100 text-red-600 hover:bg-red-200 transition-all"
+                  title="Logout"
+                >
+                  <LogOut size={20} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Timer View */}
+          {view === 'timer' && (
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 md:p-12 border border-white/20">
+                <div className="text-center mb-8">
+                  <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                    Pomodoro Buddy
+                  </h1>
+                  <p className="text-gray-600 text-sm">Research-based focus sessions</p>
+                </div>
+
+                <div className="flex gap-3 mb-8">
+                  <button
+                    onClick={() => switchMode('focus')}
+                    className={`flex-1 py-3 px-6 rounded-2xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                      mode === 'focus'
+                        ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg scale-105'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <BookOpen size={20} />
+                    Focus Time
+                  </button>
+                  <button
+                    onClick={() => switchMode('break')}
+                    className={`flex-1 py-3 px-6 rounded-2xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                      mode === 'break'
+                        ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-lg scale-105'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Coffee size={20} />
+                    Break Time
+                  </button>
+                </div>
+
+                <div className="relative mb-8">
+                  <svg className="w-full h-auto" viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="90" fill="none" stroke="#f3f4f6" strokeWidth="8" />
+                    <circle
+                      cx="100" cy="100" r="90" fill="none" stroke="url(#gradient)" strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 90}`}
+                      strokeDashoffset={`${2 * Math.PI * 90 * (1 - progress / 100)}`}
+                      transform="rotate(-90 100 100)"
+                      style={{ transition: 'stroke-dashoffset 1s linear' }}
+                    />
+                    <defs>
+                      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor={mode === 'focus' ? '#6366f1' : '#10b981'} />
+                        <stop offset="100%" stopColor={mode === 'focus' ? '#a855f7' : '#14b8a6'} />
+                      </linearGradient>
+                    </defs>
+                    <text x="100" y="100" textAnchor="middle" dy="0.3em" style={{ fontSize: '48px', fontWeight: 'bold', fill: '#1f2937' }}>
+                      {formatTime(timeLeft)}
+                    </text>
+                  </svg>
+                </div>
+
+                <div className="flex gap-4 justify-center mb-8">
+                  <button
+                    onClick={toggleTimer}
+                    className={`p-6 rounded-full shadow-lg transition-all duration-300 hover:scale-110 ${
+                      mode === 'focus'
+                        ? 'bg-gradient-to-r from-indigo-500 to-purple-500'
+                        : 'bg-gradient-to-r from-green-500 to-teal-500'
+                    } text-white`}
+                  >
+                    {isRunning ? <Pause size={32} /> : <Play size={32} />}
+                  </button>
+                  <button
+                    onClick={resetTimer}
+                    className="p-6 rounded-full bg-gray-200 text-gray-700 shadow-lg transition-all duration-300 hover:scale-110 hover:bg-gray-300"
+                  >
+                    <RotateCcw size={32} />
+                  </button>
+                  <button
+                    onClick={() => setLofiEnabled(!lofiEnabled)}
+                    className={`p-6 rounded-full shadow-lg transition-all duration-300 hover:scale-110 ${
+                      lofiEnabled ? 'bg-gradient-to-r from-orange-400 to-pink-400 text-white' : 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {lofiEnabled ? <Volume2 size={32} /> : <VolumeX size={32} />}
+                  </button>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <BookOpen size={16} />
+                      Focus Duration
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {focusOptions.map(option => (
+                        <button
+                          key={option.time}
+                          onClick={() => {
+                            setSelectedFocus(option.time);
+                            if (mode === 'focus') setTimeLeft(option.time * 60);
+                          }}
+                          className={`p-3 rounded-xl text-left transition-all duration-300 ${
+                            selectedFocus === option.time
+                              ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          <div className="font-bold text-lg">{option.label}</div>
+                          <div className="text-xs opacity-80">{option.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <Coffee size={16} />
+                      Break Duration
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {breakOptions.map(option => (
+                        <button
+                          key={option.time}
+                          onClick={() => {
+                            setSelectedBreak(option.time);
+                            if (mode === 'break') setTimeLeft(option.time * 60);
+                          }}
+                          className={`p-3 rounded-xl text-left transition-all duration-300 ${
+                            selectedBreak === option.time
+                              ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-md'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          <div className="font-bold text-lg">{option.label}</div>
+                          <div className="text-xs opacity-80">{option.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-2xl p-4 text-center">
+                  <p className="text-sm text-gray-600 mb-1">Total Sessions Completed</p>
+                  <p className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    {userStats.sessions} 🎯
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* History View */}
+          {view === 'history' && (
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/20">
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-6 flex items-center gap-3">
+                  <Clock size={32} />
+                  Your Study History
+                </h2>
+
+                <div className="grid md:grid-cols-3 gap-4 mb-8">
+                  <div className="bg-gradient-to-r from-indigo-100 to-purple-100 rounded-2xl p-4 text-center">
+                    <p className="text-sm text-gray-600 mb-1">Total Minutes</p>
+                    <p className="text-3xl font-bold text-indigo-600">{userStats.totalMinutes}</p>
+                  </div>
+                  <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-2xl p-4 text-center">
+                    <p className="text-sm text-gray-600 mb-1">Total Sessions</p>
+                    <p className="text-3xl font-bold text-purple-600">{userStats.sessions}</p>
+                  </div>
+                  <div className="bg-gradient-to-r from-pink-100 to-red-100 rounded-2xl p-4 text-center">
+                    <p className="text-sm text-gray-600 mb-1">Total Hours</p>
+                    <p className="text-3xl font-bold text-pink-600">{(userStats.totalMinutes / 60).toFixed(1)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {userSessions.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No sessions yet. Start your first one! 🚀</p>
+                  ) : (
+                    userSessions.map((session, idx) => (
+                      <div key={idx} className="bg-gray-50 rounded-xl p-4 flex items-center justify-between hover:bg-gray-100 transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full">
+                            <BookOpen size={20} className="text-white" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-800">{session.duration} minutes focus session</p>
+                            <p className="text-sm text-gray-600">{session.date}</p>
+                          </div>
+                        </div>
+                        <div className="text-2xl">✅</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Leaderboard View */}
+          {view === 'leaderboard' && (
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/20">
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 bg-clip-text text-transparent mb-6 flex items-center gap-3">
+                  <Trophy size={32} className="text-yellow-500" />
+                  Global Leaderboard
+                </h2>
+
+                <div className="space-y-4">
+                  {leaderboard.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No users yet. Be the first! 🏆</p>
+                  ) : (
+                    leaderboard.map((user, idx) => {
+                      const isTop3 = idx < 3;
+                      const medals = ['🥇', '🥈', '🥉'];
+                      const gradients = [
+                        'from-yellow-400 via-yellow-500 to-orange-500',
+                        'from-gray-300 via-gray-400 to-gray-500',
+                        'from-orange-400 via-orange-500 to-amber-600'
+                      ];
+                      
+                      return (
+                        <div
+                          key={user.username}
+                          className={`rounded-2xl p-6 flex items-center justify-between transition-all hover:scale-105 ${
+                            isTop3
+                              ? `bg-gradient-to-r ${gradients[idx]} text-white shadow-xl relative overflow-hidden`
+                              : 'bg-gray-50 hover:bg-gray-100'
+                          }`}
+                        >
+                          {isTop3 && <div className="absolute inset-0 shimmer"></div>}
+                          
+                          <div className="flex items-center gap-4 relative z-10">
+                            <div className={`text-4xl font-bold ${isTop3 ? '' : 'text-gray-400'}`}>
+                              {isTop3 ? medals[idx] : `#${idx + 1}`}
+                            </div>
+                            <div className={`p-4 rounded-full ${isTop3 ? 'bg-white/20' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`}>
+                              <User size={24} className={isTop3 ? 'text-white' : 'text-white'} />
+                            </div>
+                            <div>
+                              <p className={`font-bold text-xl ${isTop3 ? 'text-white' : 'text-gray-800'} ${user.username === currentUser ? 'underline' : ''}`}>
+                                {user.username} {user.username === currentUser && '(You)'}
+                              </p>
+                              <p className={`text-sm ${isTop3 ? 'text-white/80' : 'text-gray-600'}`}>
+                                {user.sessions} sessions
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right relative z-10">
+                            <p className={`text-3xl font-bold ${isTop3 ? 'text-white' : 'text-indigo-600'}`}>
+                              {user.totalMinutes}
+                            </p>
+                            <p className={`text-sm ${isTop3 ? 'text-white/80' : 'text-gray-600'}`}>
+                              minutes
+                            </p>
+                          </div>
+
+                          {idx === 0 && (
+                            <div className="absolute top-2 right-2">
+                              <Trophy size={32} className="text-yellow-200 trophy-animate" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.render(<PomodoroBuddy />, document.getElementById('root'));
+  </script>
+</body>
+</html>
