@@ -1,3 +1,4 @@
+
 const LS = {
   get: (k, fb) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } },
   set: (k, v)  => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
@@ -42,7 +43,7 @@ function $(id)       { return document.getElementById(id); }
 function clamp(v,mn,mx){ return Math.min(mx, Math.max(mn, v)); }
 
 let currentUser  = null;
-let timerMode    = 'focus';   
+let timerMode    = 'focus';
 let isRunning    = false;
 let timeLeft     = 25 * 60;
 let focusSel     = 25;
@@ -547,7 +548,6 @@ function setTrack(idx, autoplay) {
   $('mpProgressFill').style.background = t.color;
   $('mpProgressDot').style.background  = t.color;
 
-  // Dots
   const dotsEl = $('mpDots');
   dotsEl.innerHTML = '';
   TRACKS.forEach((tr, i) => {
@@ -655,7 +655,6 @@ function renderHistory() {
   $('pbLongest').textContent  = `${longest} days`;
   $('pbBestDay').textContent  = `${best.mins} min · ${best.date}`;
 
-  // Chart
   const data    = getChartData(sessions, chartPeriod);
   const maxMins = Math.max(...data.map(d => d.mins), 1);
   const chart   = $('barChart');
